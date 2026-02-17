@@ -6,3 +6,4 @@ python-dotenv
 itsdangerous
 requests
 jinja2>=3.1.0
+python-multipart
