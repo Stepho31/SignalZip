@@ -672,17 +672,23 @@ Best,
   function startScanAndSubmit(e) {
     e.preventDefault();
     overlay.style.display = "flex";
-    if (scanBarInner) scanBarInner.style.width = "6%";
+    if (scanBarInner) {
+      scanBarInner.style.width = "6%";
+      // remove the CSS transition so manual RAF updates feel smooth and slow
+      scanBarInner.style.transition = "none";
+    }
 
-    const duration = 4200; // total scan animation length (ms)
-    const thresholds = [0.18, 0.45, 0.72, 0.93];
+    // super slow animation
+    const duration = 15000; // 15s total scan animation length (ms)
+    // spaced thresholds so dots turn green progressively
+    const thresholds = [0.12, 0.40, 0.72, 0.92];
     const activated = new Array(scanSteps.length).fill(false);
     const start = performance.now();
 
     function frame(now) {
       const elapsed = now - start;
       const pct = Math.min(1, elapsed / duration);
-      const width = 6 + 94 * pct; // start at 6% like the CSS keyframes
+      const width = 6 + 94 * pct; // start at 6% → 100%
       if (scanBarInner) scanBarInner.style.width = width + "%";
 
       for (let i = 0; i < scanSteps.length; i++) {
@@ -698,7 +704,7 @@ Best,
         setTimeout(() => {
           form.removeEventListener("submit", startScanAndSubmit);
           form.submit();
-        }, 300);
+        }, 400);
       }
     }
 
@@ -707,6 +713,15 @@ Best,
 
   if (form) {
     form.addEventListener("submit", startScanAndSubmit);
+  }
+
+  // Toggle card details when clicking the result header
+  function toggleCard(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const currentlyHidden = el.style.display === "none" || getComputedStyle(el).display === "none";
+    el.style.display = currentlyHidden ? "block" : "none";
+    if (currentlyHidden) el.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   // Copy buttons (unchanged logic)
