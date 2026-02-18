@@ -312,40 +312,6 @@ li{ margin-bottom: 6px; color:#e9e9ef; }
   line-height: 1.55;
 }
 
-.note-head{
-  display:flex; justify-content:space-between; align-items:center; gap:10px;
-  margin-bottom: 8px;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.copy{
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.12);
-  color:#fff;
-  padding: 8px 10px;
-  border-radius: 12px;
-  cursor: pointer;
-  font-weight: 800;
-  font-size: 12px;
-}
-
-.copy:hover{ opacity: .9; }
-
-.paywall{
-  margin-top: 18px;
-  text-align:center;
-  padding: 22px;
-  border-radius: var(--radius);
-  border: 1px dashed rgba(255,42,42,.45);
-  background: radial-gradient(600px 220px at 50% 0%, rgba(255,42,42,.18), transparent 65%),
-              rgba(255,255,255,.02);
-  box-shadow: var(--shadow);
-}
-
-.paywall h2{ font-size: 18px; margin:0; }
-.paywall p{ color: var(--muted); margin: 8px 0 14px; }
-
 .small{
   color: var(--muted);
   font-size: 12px;
@@ -385,19 +351,6 @@ li{ margin-bottom: 6px; color:#e9e9ef; }
   padding: 18px;
 }
 
-.scannerTop{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:12px;
-  margin-bottom: 12px;
-}
-
-.scanTitle{
-  font-weight: 900;
-  letter-spacing: .2px;
-}
-
 .scanBar{
   height: 10px;
   border-radius: 999px;
@@ -408,44 +361,40 @@ li{ margin-bottom: 6px; color:#e9e9ef; }
 
 .scanBar > div{
   height:100%;
-  width: 0%;
+  width: 5%;
   background: linear-gradient(90deg, rgba(255,42,42,.9), rgba(255,42,42,.35));
-  transition: width .3s ease;
-}
-
-@keyframes fill{
-  from{ width: 6%; }
-  to{ width: 100%; }
+  transition: width 1200ms linear;
 }
 
 .scanSteps{
   display:grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-  margin-top: 12px;
+  gap:10px;
+  margin-top:12px;
 }
 
 .step{
   display:flex;
-  gap: 10px;
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,.08);
-  background: rgba(0,0,0,.25);
-  color: rgba(255,255,255,.86);
-  font-size: 13px;
+  gap:10px;
+  padding:12px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(0,0,0,.25);
+  font-size:13px;
 }
 
 .step .b{
-  width: 10px; height: 10px; border-radius: 999px;
-  background: var(--red);
-  box-shadow: 0 0 0 6px rgba(255,42,42,.12);
-  margin-top: 4px;
+  width:10px;
+  height:10px;
+  border-radius:999px;
+  background:var(--red);
+  box-shadow:0 0 0 6px rgba(255,42,42,.12);
+  margin-top:4px;
+  transition:background-color 1.2s ease, box-shadow 1.2s ease;
 }
 
 .step.done .b{
-  background: var(--green);
-  box-shadow: 0 0 0 6px rgba(46,229,157,.12);
+  background:var(--green);
+  box-shadow:0 0 0 6px rgba(46,229,157,.12);
 }
 </style>
 </head>
@@ -454,17 +403,20 @@ li{ margin-bottom: 6px; color:#e9e9ef; }
 
 <div id="scannerOverlay">
   <div class="scannerBox">
-    <div class="scannerTop">
-      <div class="scanTitle">🔴 Scanning your territory…</div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
+      <strong>🔴 Scanning your territory…</strong>
       <div class="pill"><b>SignalZip</b> Intelligence Engine</div>
     </div>
+
     <div class="scanBar"><div></div></div>
-    <div class="scanSteps" id="scanSteps">
+
+    <div class="scanSteps">
       <div class="step"><div class="b"></div><div>Locating businesses by zip + industry…</div></div>
-      <div class="step"><div class="b"></div><div>Scoring “payroll pain likelihood” (signals, not guesses)…</div></div>
-      <div class="step"><div class="b"></div><div>Generating cold email + connection note you can copy…</div></div>
-      <div class="step"><div class="b"></div><div>Mapping buying committee (LinkedIn jump links)…</div></div>
+      <div class="step"><div class="b"></div><div>Scoring “payroll pain likelihood”…</div></div>
+      <div class="step"><div class="b"></div><div>Generating cold email + connection note…</div></div>
+      <div class="step"><div class="b"></div><div>Mapping buying committee…</div></div>
     </div>
+
     <div class="small">Tip: The free scan shows the top 3. Pro unlocks the full list + exports.</div>
   </div>
 </div>
