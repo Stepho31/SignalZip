@@ -469,9 +469,18 @@ li{ margin-bottom: 6px; color:#e9e9ef; }
     <h1>{{ app_name }}</h1>
     <div class="meta">Territory intelligence that feels curated — not a giant list.</div>
   </div>
+  {% if not is_premium %}
+  <form method="post" action="/start-checkout" style="display:inline-flex; gap:8px;">
+    <input name="email" type="email" placeholder="Work email for Pro"
+          required
+          style="padding:8px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.15); background:rgba(0,0,0,.35); color:#fff; font-size:12px; max-width:220px;" />
+    <button type="submit" class="link-btn">Upgrade to Pro</button>
+  </form>
+  {% endif %}
   <div class="pill">
     <span>Vertical:</span> <b>Payroll / HR</b>
   </div>
+
 </header>
 
 <div class="top-grid">
@@ -525,9 +534,8 @@ li{ margin-bottom: 6px; color:#e9e9ef; }
   {% else %}
     <span class="pill">Free scan: <b>Top 3</b></span>
 
-    <form method="post" action="/create-checkout-session" style="display:inline;">
-      <button type="submit" class="link-btn">Unlock Pro</button>
-    </form>
+      <a href="#pro-upgrade" class="link-btn">Unlock Pro</a>
+
 
   {% endif %}
 </div>
@@ -638,7 +646,7 @@ Best,
 {% endif %}
 
 {% if not is_premium and locked_count > 0 %}
-  <div class="paywall">
+ <div class="paywall" id="pro-upgrade">
     <h2>🔒 {{ locked_count }} More High-Signal Accounts Hidden</h2>
     <p>Pro unlocks the full ranked list + CSV export. Don’t let your competitors grab these first.</p>
 
