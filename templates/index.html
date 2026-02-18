@@ -670,62 +670,75 @@ Best,
 
 
 <script>
-  // Scanner overlay: slower bar + slow dot transitions, but still respects upload progress when available
+  // Simple, reliable slow-loading scanner UI:
+  // - deterministic slow fallback animation (4min cap) driven by setInterval
+  // - per-step timeouts to flip dots to green
+  // - respects actual XHR upload progress when available and finishes immediately on response
   const form = document.getElementById("scanForm");
   const overlay = document.getElementById("scannerOverlay");
   const scanBarInner = document.querySelector(".scanBar > div");
-  const scanSteps = document.querySelectorAll(".scanSteps .step");
+  const scanSteps = Array.from(document.querySelectorAll(".scanSteps .step"));
 
   function startScanAndSubmit(e) {
-    e.preventDefault(); // use XHR so we can control UI during upload
+    e.preventDefault();
+    if (!form) return;
+
+    // show overlay + reset UI
     overlay.style.display = "flex";
-
-    // reset state
     scanSteps.forEach(s => s.classList.remove("done"));
-    const activated = new Array(scanSteps.length).fill(false);
-
     if (scanBarInner) {
-      scanBarInner.style.width = "6%";
       scanBarInner.style.transition = "none";
+      scanBarInner.style.width = "6%";
     }
 
-    const thresholds = [0.12, 0.40, 0.72, 0.92]; // when dots turn green
-    const slowDuration = 360000; // 6 minutes for slow animation
+    const thresholds = [0.12, 0.40, 0.72, 0.92];
+    const slowDuration = 240000; // 4 minutes for slow fallback
     let lastUploadPct = 0;
-    let animId = null;
-    const startTime = performance.now();
+    let progress = 0;
+    let intervalId = null;
+    const stepTimeouts = [];
 
-    function updateProgress(pct) {
-      const p = Math.min(1, Math.max(0, pct));
-      const width = 6 + 94 * p;
+    function setProgress(pct) {
+      progress = Math.min(1, Math.max(progress, pct));
+      const width = 6 + 94 * progress;
       if (scanBarInner) {
-        // slower, smoother transition
-        scanBarInner.style.transition = "width 900ms linear";
+        scanBarInner.style.transition = "width 700ms linear";
         scanBarInner.style.width = width + "%";
       }
+      // mark step dots done when crossing thresholds
       for (let i = 0; i < scanSteps.length; i++) {
-        if (!activated[i] && p >= (thresholds[i] || 1)) {
-          activated[i] = true;
+        if (progress >= (thresholds[i] || 1)) {
           scanSteps[i].classList.add("done");
         }
       }
     }
 
-    // requestAnimationFrame-driven slow animation that never finishes fully (caps at 98%)
-    function tick(now) {
-      const elapsed = now - startTime;
-      const est = Math.min(0.98, elapsed / slowDuration);
-      // prefer actual upload progress if it's ahead of the estimate
-      const visiblePct = Math.max(est, lastUploadPct);
-      updateProgress(visiblePct);
-      if (visiblePct < 0.99) {
-        animId = requestAnimationFrame(tick);
-      } else {
-        animId = null;
-      }
+    // schedule slow timed completions for each step as a graceful fallback
+    for (let i = 0; i < thresholds.length; i++) {
+      const t = thresholds[i];
+      const ms = Math.round(slowDuration * t);
+      stepTimeouts.push(setTimeout(() => {
+        scanSteps[i].classList.add("done");
+        // slowly nudge the progress bar forward with each step
+        setProgress(Math.max(progress, t + 0.01));
+      }, ms));
     }
-    animId = requestAnimationFrame(tick);
 
+    // overall slow animation loop - keeps bar moving even without upload progress
+    const startTime = Date.now();
+    intervalId = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const est = Math.min(0.98, elapsed / slowDuration);
+      const visible = Math.max(est, lastUploadPct, progress);
+      setProgress(visible);
+      if (visible >= 0.98) {
+        // keep it — we'll finish when XHR completes
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    }, 300);
+
+    // send XHR so we can finish UI when server responds
     const xhr = new XMLHttpRequest();
     xhr.open("POST", form.action);
     xhr.withCredentials = true;
@@ -734,17 +747,18 @@ Best,
     xhr.upload.onprogress = (ev) => {
       if (ev.lengthComputable) {
         lastUploadPct = ev.loaded / ev.total;
-        updateProgress(lastUploadPct);
-      } else {
-        // keep using slow estimate (tick will drive UI)
+        setProgress(lastUploadPct);
       }
     };
 
     xhr.onreadystatechange = () => {
       if (xhr.readyState === 4) {
-        // cancel animation loop
-        if (animId) cancelAnimationFrame(animId);
-        updateProgress(1);
+        // clear fallbacks
+        if (intervalId) { clearInterval(intervalId); intervalId = null; }
+        stepTimeouts.forEach(id => clearTimeout(id));
+        // show completion
+        setProgress(1);
+        scanSteps.forEach(s => s.classList.add("done"));
         setTimeout(() => {
           try {
             document.open();
@@ -754,45 +768,41 @@ Best,
             if (xhr.responseURL) window.location.href = xhr.responseURL;
             else overlay.style.display = "none";
           }
-        }, 400);
+        }, 500);
       }
     };
 
     xhr.onerror = () => {
-      if (animId) cancelAnimationFrame(animId);
-      updateProgress(1);
+      if (intervalId) { clearInterval(intervalId); intervalId = null; }
+      stepTimeouts.forEach(id => clearTimeout(id));
+      setProgress(1);
       scanSteps.forEach(s => s.classList.add("done"));
       setTimeout(() => {
         overlay.style.display = "none";
         alert("Upload failed. Please try again.");
-      }, 800);
+      }, 700);
     };
 
     xhr.send(fd);
   }
 
-  if (form) {
-    form.addEventListener("submit", startScanAndSubmit);
-  }
+  if (form) form.addEventListener("submit", startScanAndSubmit);
 
-  // Toggle card details when clicking the result header
+  // small helpers kept intact
   function toggleCard(id) {
     const el = document.getElementById(id);
     if (!el) return;
-    const currentlyHidden = el.style.display === "none" || getComputedStyle(el).display === "none";
-    el.style.display = currentlyHidden ? "block" : "none";
-    if (currentlyHidden) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    const hidden = el.style.display === "none" || getComputedStyle(el).display === "none";
+    el.style.display = hidden ? "block" : "none";
+    if (hidden) el.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
-  // Copy buttons
   document.addEventListener("click", async (e) => {
     const btn = e.target.closest("[data-copy]");
     if (!btn) return;
-
     const id = btn.getAttribute("data-copy");
     const el = document.getElementById(id);
     if (!el) return;
-
     try {
       await navigator.clipboard.writeText(el.innerText);
       const old = btn.innerText;
