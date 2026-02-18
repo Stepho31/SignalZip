@@ -410,7 +410,7 @@ li{ margin-bottom: 6px; color:#e9e9ef; }
   height:100%;
   width: 0%;
   background: linear-gradient(90deg, rgba(255,42,42,.9), rgba(255,42,42,.35));
-  animation: fill 2.4s ease forwards;
+  transition: width .3s ease;
 }
 
 @keyframes fill{
@@ -469,15 +469,10 @@ li{ margin-bottom: 6px; color:#e9e9ef; }
     <h1>{{ app_name }}</h1>
     <div class="meta">Territory intelligence that feels curated — not a giant list.</div>
   </div>
-{% if not is_premium %}
-<a href="#pro-upgrade" class="pill" style="text-decoration:none;">
-  🔓 Upgrade to Pro
-</a>
-{% endif %}
+
   <div class="pill">
     <span>Vertical:</span> <b>Payroll / HR</b>
   </div>
-
 </header>
 
 <div class="top-grid">
