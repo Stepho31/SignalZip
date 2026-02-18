@@ -572,15 +572,15 @@ li{ margin-bottom: 6px; color:#e9e9ef; }
 
   <div class="card-head" style="cursor:pointer;" onclick="toggleCard('card-{{ loop.index }}')">
     <div>
-      <h2>{{ r.name }}</h2>
+      <h2>{{ loop.index }}. {{ r.name }} — <span class="score">{{ r.priority_score }} / 10</span>
+        <span style="font-size:14px; margin-left:10px;">🔥 {{ r.signal_type }} Signal</span>
+      </h2>
       <div class="row-meta">
-        <span>Score: <span class="score">{{ r.priority_score }} / 10</span></span>
-        <span>•</span>
         <span>{{ r.zip }}</span>
         {% if r.industry %}<span>• {{ r.industry }}</span>{% endif %}
       </div>
     </div>
-    <span class="badge">{{ r.signal_type }} Signal</span>
+    <!-- badge removed to avoid duplicate signal label in header -->
   </div>
  <div id="card-{{ loop.index }}" style="display:none; margin-top:16px;">
 
@@ -672,15 +672,20 @@ Best,
   function startScanAndSubmit(e) {
     e.preventDefault();
     overlay.style.display = "flex";
+
+    // reset step state
+    scanSteps.forEach(s => s.classList.remove("done"));
+
     if (scanBarInner) {
       scanBarInner.style.width = "6%";
-      // remove the CSS transition so manual RAF updates feel smooth and slow
+      // keep manual RAF updates for a very slow, smooth fill
       scanBarInner.style.transition = "none";
     }
 
-    // super slow animation
-    const duration = 15000; // 15s total scan animation length (ms)
-    // spaced thresholds so dots turn green progressively
+    // extremely slow animation (3 minutes)
+    const duration = 180000; // 180_000ms = 180s (3 minutes)
+
+    // spaced thresholds so dots turn green progressively as the bar moves
     const thresholds = [0.12, 0.40, 0.72, 0.92];
     const activated = new Array(scanSteps.length).fill(false);
     const start = performance.now();
