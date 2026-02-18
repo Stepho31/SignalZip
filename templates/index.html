@@ -630,9 +630,12 @@ Best,
     <h2>🔒 {{ locked_count }} More High-Signal Accounts Hidden</h2>
     <p>Pro unlocks the full ranked list + CSV export. Don’t let your competitors grab these first.</p>
 
-    <a href="/upgrade">
-      <button id="upgradeBtnTop" type="button">Unlock SignalZip Pro</button>
-    </a>
+  <form method="post" action="/start-checkout" style="margin-top: 12px;">
+  <input name="email" type="email" placeholder="Work email for Pro access" required
+         style="max-width:420px; margin: 0 auto 10px; display:block;" />
+  <button id="upgradeBtnTop" type="submit">Unlock SignalZip Pro</button>
+  </form>
+
 
     <div class="locked-strip">
       <div class="lockpill">Unlimited scans</div>
