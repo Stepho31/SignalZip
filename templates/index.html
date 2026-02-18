@@ -510,16 +510,28 @@ li{ margin-bottom: 6px; color:#e9e9ef; }
       <button type="submit">🔥 Scan Territory</button>
     </form>
 
-    <div class="sub-actions">
-      {% if is_premium %}
-        <span class="pill"><b>Pro</b> active</span>
-        <a class="link-btn" href="/logout">Test Free Mode</a>
-        <a class="link-btn" href="/export.csv">Export CSV</a>
-      {% else %}
-        <span class="pill">Free scan: <b>Top 3</b></span>
-        <a class="link-btn" href="#" onclick="document.getElementById('upgradeBtnTop').click(); return false;">Unlock Pro</a>
-      {% endif %}
-    </div>
+<div class="sub-actions">
+  {% if is_premium %}
+    <span class="pill"><b>Pro</b> active</span>
+
+    <a class="link-btn" href="/export.csv">Export CSV</a>
+
+    {% if email %}
+    <form method="post" action="/billing-portal" style="display:inline;">
+      <button type="submit" class="link-btn">Manage Billing</button>
+    </form>
+    {% endif %}
+
+  {% else %}
+    <span class="pill">Free scan: <b>Top 3</b></span>
+
+    <form method="post" action="/create-checkout-session" style="display:inline;">
+      <button type="submit" class="link-btn">Unlock Pro</button>
+    </form>
+
+  {% endif %}
+</div>
+
 
     {% if error %}
       <div class="error">{{ error }}</div>
