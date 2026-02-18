@@ -573,7 +573,13 @@ li{ margin-bottom: 6px; color:#e9e9ef; }
   <div class="card-head" style="cursor:pointer;" onclick="toggleCard('card-{{ loop.index }}')">
     <div>
       <h2>{{ loop.index }}. {{ r.name }} — <span class="score">{{ r.priority_score }} / 10</span>
-        <span style="font-size:14px; margin-left:10px;">🔥 {{ r.signal_type }} Signal</span>
+        <span style="font-size:14px; margin-left:10px;">
+          {% if r.signal_type == 'Growth' %}
+            {% if loop.first %}🔥 Highest Growth{% endif %}
+          {% else %}
+            🔥 {{ r.signal_type }} Signal
+          {% endif %}
+        </span>
       </h2>
       <div class="row-meta">
         <span>{{ r.zip }}</span>
@@ -663,56 +669,92 @@ Best,
 
 
 <script>
-  // Scanner overlay: animate progress bar and mark steps done
-  // now shows overlay and starts the slow animation immediately while the browser uploads/submits the form
+  // Scanner overlay: animate progress bar and mark steps done while the form uploads (uses XHR to track upload progress)
   const form = document.getElementById("scanForm");
   const overlay = document.getElementById("scannerOverlay");
   const scanBarInner = document.querySelector(".scanBar > div");
   const scanSteps = document.querySelectorAll(".scanSteps .step");
 
   function startScanAndSubmit(e) {
-    // DON'T preventDefault — let the browser submit immediately so upload starts now
+    e.preventDefault(); // submit via XHR so we can animate during upload
     overlay.style.display = "flex";
 
-    // reset step state
+    // reset state
     scanSteps.forEach(s => s.classList.remove("done"));
-
+    const activated = new Array(scanSteps.length).fill(false);
     if (scanBarInner) {
       scanBarInner.style.width = "6%";
       scanBarInner.style.transition = "none";
     }
 
-    // extremely slow animation (3 minutes)
-    const duration = 180000; // 180_000ms = 180s (3 minutes)
-
-    // spaced thresholds so dots turn green progressively as the bar moves
-    const thresholds = [0.12, 0.40, 0.72, 0.92];
-    const activated = new Array(scanSteps.length).fill(false);
+    const thresholds = [0.12, 0.40, 0.72, 0.92]; // when dots turn green
     const start = performance.now();
 
-    function frame(now) {
-      const elapsed = now - start;
-      const pct = Math.min(1, elapsed / duration);
-      const width = 6 + 94 * pct; // start at 6% → 100%
-      if (scanBarInner) scanBarInner.style.width = width + "%";
-
+    function updateProgress(pct) {
+      const width = 6 + 94 * Math.min(1, pct);
+      if (scanBarInner) {
+        scanBarInner.style.transition = "width .25s linear";
+        scanBarInner.style.width = width + "%";
+      }
       for (let i = 0; i < scanSteps.length; i++) {
         if (!activated[i] && pct >= (thresholds[i] || 1)) {
           activated[i] = true;
           scanSteps[i].classList.add("done");
         }
       }
-
-      if (pct < 1) {
-        requestAnimationFrame(frame);
-      } else {
-        // finished animation — nothing more to do here; the page will typically navigate when upload completes
-      }
     }
 
-    requestAnimationFrame(frame);
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", form.action);
+    xhr.withCredentials = true;
+    const fd = new FormData(form);
 
-    // allow submit to continue normally (no e.preventDefault())
+    // upload progress
+    xhr.upload.onprogress = (ev) => {
+      if (ev.lengthComputable) {
+        updateProgress(ev.loaded / ev.total);
+      } else {
+        // fallback: slow estimate based on elapsed time (keeps animation moving)
+        const elapsed = performance.now() - start;
+        const est = Math.min(0.98, elapsed / 180000); // 3 minute scale cap at 98%
+        updateProgress(est);
+      }
+    };
+
+    // final response handling - replace page content with server response so navigation still occurs
+    xhr.onreadystatechange = () => {
+      if (xhr.readyState === 4) {
+        // ensure full completion UI
+        updateProgress(1);
+        setTimeout(() => {
+          // replace document with response HTML (works for most server-rendered responses)
+          try {
+            document.open();
+            document.write(xhr.responseText);
+            document.close();
+          } catch (err) {
+            // fallback to hard redirect if response URL is available
+            if (xhr.responseURL) window.location.href = xhr.responseURL;
+            else overlay.style.display = "none";
+          }
+        }, 400);
+      }
+    };
+
+    xhr.onerror = () => {
+      // show completion state and hide overlay after a short delay
+      updateProgress(1);
+      scanSteps.forEach(s => s.classList.add("done"));
+      setTimeout(() => {
+        overlay.style.display = "none";
+        alert("Upload failed. Please try again.");
+      }, 800);
+    };
+
+    // start upload
+    xhr.send(fd);
+
+    // keep default submit prevented (we handle navigation when XHR completes)
   }
 
   if (form) {
