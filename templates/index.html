@@ -563,72 +563,69 @@ li{ margin-bottom: 6px; color:#e9e9ef; }
 
   <div class="grid">
     {% for r in results %}
-      <div class="card">
-        <div class="card-head">
-          <div>
-            <h2>{{ r.name }}</h2>
-            <div class="row-meta">
-              <span>Score: <span class="score">{{ r.priority_score }} / 10</span></span>
-              <span>•</span>
-              <span>{{ r.zip }}</span>
-              {% if r.industry %}<span>• {{ r.industry }}</span>{% endif %}
-            </div>
-          </div>
-          <span class="badge">{{ r.signal_type }} Signal</span>
-        </div>
+  <div class="card">
 
-        <div class="section">
-          <div class="label">Why this account matters</div>
-          <div style="color: rgba(255,255,255,.86);">{{ r.reason }}</div>
-        </div>
+  <div class="card-head" style="cursor:pointer;" onclick="toggleCard('card-{{ loop.index }}')">
+    <div>
+      <h2>{{ r.name }}</h2>
+      <div class="row-meta">
+        <span>Score: <span class="score">{{ r.priority_score }} / 10</span></span>
+        <span>•</span>
+        <span>{{ r.zip }}</span>
+        {% if r.industry %}<span>• {{ r.industry }}</span>{% endif %}
+      </div>
+    </div>
+    <span class="badge">{{ r.signal_type }} Signal</span>
+  </div>
+ <div id="card-{{ loop.index }}" style="display:none; margin-top:16px;">
 
-        <div class="section">
-          <div class="label">Likely Decision Makers (LinkedIn jump)</div>
-          <ul>
-            {% for e in r.executives %}
-              <li>
-                <a href="{{ e.linkedin_url }}" target="_blank">{{ e.name }}</a> — {{ e.title }}
-              </li>
-            {% endfor %}
-          </ul>
-        </div>
+    <div class="section">
+      <div class="label">Why this account matters</div>
+      <div style="color: rgba(255,255,255,.86);">{{ r.reason }}</div>
+    </div>
 
-        <div class="section">
-          <div class="label">Likely Payroll Pain Points</div>
-          <ul>
-            {% for p in r.pain_points %}
-              <li>{{ p }}</li>
-            {% endfor %}
-          </ul>
-        </div>
+    <div class="section">
+      <div class="label">Likely Decision Makers</div>
+      <ul>
+        {% for e in r.executives %}
+          <li>
+            <a href="{{ e.linkedin_url }}" target="_blank">{{ e.name }}</a> — {{ e.title }}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
 
-        <div class="section">
-          <div class="label">Suggested Cold Email</div>
-          <div class="note">
-            <div class="note-head">
-              <div><b>Subject:</b> {{ r.email_subject }}</div>
-              <button class="copy" type="button" data-copy="email-{{ loop.index }}">Copy Email</button>
-            </div>
-            <pre id="email-{{ loop.index }}">Hi {{ r.name }} Team,
+    <div class="section">
+      <div class="label">Likely Payroll Pain Points</div>
+      <ul>
+        {% for p in r.pain_points %}
+          <li>{{ p }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="section">
+      <div class="label">Suggested Cold Email</div>
+      <div class="note">
+        <pre>Hi {{ r.name }} Team,
 
 {{ r.email_draft }}
 
 Best,
 [Your Name]</pre>
-          </div>
-        </div>
-
-        <div class="section">
-          <div class="label">LinkedIn Connection Note</div>
-          <div class="note">
-            <div class="note-head">
-              <div>Under 300 characters • optimized for acceptance</div>
-              <button class="copy" type="button" data-copy="li-{{ loop.index }}">Copy Note</button>
-            </div>
-            <pre id="li-{{ loop.index }}">{{ r.linkedin_note }}</pre>
-          </div>
-        </div>
       </div>
+    </div>
+
+    <div class="section">
+      <div class="label">LinkedIn Connection Note</div>
+      <div class="note">
+        <pre>{{ r.linkedin_note }}</pre>
+      </div>
+    </div>
+
+  </div>
+
+</div>
     {% endfor %}
   </div>
 {% endif %}
@@ -657,6 +654,18 @@ Best,
     </div>
   </div>
 {% endif %}
+
+<script>
+function toggleCard(id) {
+  const el = document.getElementById(id);
+  if (el.style.display === "none") {
+    el.style.display = "block";
+  } else {
+    el.style.display = "none";
+  }
+}
+</script>
+
 
 <script>
   // Scanner dopamine overlay on submit
