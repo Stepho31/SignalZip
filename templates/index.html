@@ -469,14 +469,11 @@ li{ margin-bottom: 6px; color:#e9e9ef; }
     <h1>{{ app_name }}</h1>
     <div class="meta">Territory intelligence that feels curated — not a giant list.</div>
   </div>
-  {% if not is_premium %}
-  <form method="post" action="/start-checkout" style="display:inline-flex; gap:8px;">
-    <input name="email" type="email" placeholder="Work email for Pro"
-          required
-          style="padding:8px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.15); background:rgba(0,0,0,.35); color:#fff; font-size:12px; max-width:220px;" />
-    <button type="submit" class="link-btn">Upgrade to Pro</button>
-  </form>
-  {% endif %}
+{% if not is_premium %}
+<a href="#pro-upgrade" class="pill" style="text-decoration:none;">
+  🔓 Upgrade to Pro
+</a>
+{% endif %}
   <div class="pill">
     <span>Vertical:</span> <b>Payroll / HR</b>
   </div>
@@ -533,10 +530,6 @@ li{ margin-bottom: 6px; color:#e9e9ef; }
 
   {% else %}
     <span class="pill">Free scan: <b>Top 3</b></span>
-
-      <a href="#pro-upgrade" class="link-btn">Unlock Pro</a>
-
-
   {% endif %}
 </div>
 
