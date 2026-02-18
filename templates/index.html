@@ -670,10 +670,7 @@ Best,
 
 
 <script>
-  // Simple, reliable slow-loading scanner UI:
-  // - deterministic slow fallback animation (4min cap) driven by setInterval
-  // - per-step timeouts to flip dots to green
-  // - respects actual XHR upload progress when available and finishes immediately on response
+  // Slower scanner UI (longer, smoother fallback)
   const form = document.getElementById("scanForm");
   const overlay = document.getElementById("scannerOverlay");
   const scanBarInner = document.querySelector(".scanBar > div");
@@ -683,16 +680,15 @@ Best,
     e.preventDefault();
     if (!form) return;
 
-    // show overlay + reset UI
     overlay.style.display = "flex";
     scanSteps.forEach(s => s.classList.remove("done"));
     if (scanBarInner) {
       scanBarInner.style.transition = "none";
-      scanBarInner.style.width = "6%";
+      scanBarInner.style.width = "3%";
     }
 
     const thresholds = [0.12, 0.40, 0.72, 0.92];
-    const slowDuration = 240000; // 4 minutes for slow fallback
+    const slowDuration = 600000; // 10 minutes fallback (much slower)
     let lastUploadPct = 0;
     let progress = 0;
     let intervalId = null;
@@ -700,12 +696,11 @@ Best,
 
     function setProgress(pct) {
       progress = Math.min(1, Math.max(progress, pct));
-      const width = 6 + 94 * progress;
+      const width = 3 + 97 * progress; // start smaller, use full range
       if (scanBarInner) {
-        scanBarInner.style.transition = "width 700ms linear";
+        scanBarInner.style.transition = "width 900ms linear";
         scanBarInner.style.width = width + "%";
       }
-      // mark step dots done when crossing thresholds
       for (let i = 0; i < scanSteps.length; i++) {
         if (progress >= (thresholds[i] || 1)) {
           scanSteps[i].classList.add("done");
@@ -713,32 +708,29 @@ Best,
       }
     }
 
-    // schedule slow timed completions for each step as a graceful fallback
+    // schedule very slow timed completions for each step
     for (let i = 0; i < thresholds.length; i++) {
       const t = thresholds[i];
       const ms = Math.round(slowDuration * t);
       stepTimeouts.push(setTimeout(() => {
         scanSteps[i].classList.add("done");
-        // slowly nudge the progress bar forward with each step
-        setProgress(Math.max(progress, t + 0.01));
+        setProgress(Math.max(progress, t + 0.005));
       }, ms));
     }
 
-    // overall slow animation loop - keeps bar moving even without upload progress
     const startTime = Date.now();
     intervalId = setInterval(() => {
       const elapsed = Date.now() - startTime;
-      const est = Math.min(0.98, elapsed / slowDuration);
+      const est = Math.min(0.99, elapsed / slowDuration);
       const visible = Math.max(est, lastUploadPct, progress);
       setProgress(visible);
-      if (visible >= 0.98) {
-        // keep it — we'll finish when XHR completes
+      // keep interval running until near completion so XHR can finish it
+      if (visible >= 0.99) {
         clearInterval(intervalId);
         intervalId = null;
       }
-    }, 300);
+    }, 500); // update half-secondly
 
-    // send XHR so we can finish UI when server responds
     const xhr = new XMLHttpRequest();
     xhr.open("POST", form.action);
     xhr.withCredentials = true;
@@ -753,10 +745,8 @@ Best,
 
     xhr.onreadystatechange = () => {
       if (xhr.readyState === 4) {
-        // clear fallbacks
         if (intervalId) { clearInterval(intervalId); intervalId = null; }
         stepTimeouts.forEach(id => clearTimeout(id));
-        // show completion
         setProgress(1);
         scanSteps.forEach(s => s.classList.add("done"));
         setTimeout(() => {
@@ -768,7 +758,7 @@ Best,
             if (xhr.responseURL) window.location.href = xhr.responseURL;
             else overlay.style.display = "none";
           }
-        }, 500);
+        }, 600);
       }
     };
 
@@ -788,7 +778,7 @@ Best,
 
   if (form) form.addEventListener("submit", startScanAndSubmit);
 
-  // small helpers kept intact
+  // helpers
   function toggleCard(id) {
     const el = document.getElementById(id);
     if (!el) return;
