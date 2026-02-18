@@ -663,14 +663,15 @@ Best,
 
 
 <script>
-  // Scanner overlay: animate progress bar and mark steps done, then submit
+  // Scanner overlay: animate progress bar and mark steps done
+  // now shows overlay and starts the slow animation immediately while the browser uploads/submits the form
   const form = document.getElementById("scanForm");
   const overlay = document.getElementById("scannerOverlay");
   const scanBarInner = document.querySelector(".scanBar > div");
   const scanSteps = document.querySelectorAll(".scanSteps .step");
 
   function startScanAndSubmit(e) {
-    e.preventDefault();
+    // DON'T preventDefault — let the browser submit immediately so upload starts now
     overlay.style.display = "flex";
 
     // reset step state
@@ -678,7 +679,6 @@ Best,
 
     if (scanBarInner) {
       scanBarInner.style.width = "6%";
-      // keep manual RAF updates for a very slow, smooth fill
       scanBarInner.style.transition = "none";
     }
 
@@ -706,14 +706,13 @@ Best,
       if (pct < 1) {
         requestAnimationFrame(frame);
       } else {
-        setTimeout(() => {
-          form.removeEventListener("submit", startScanAndSubmit);
-          form.submit();
-        }, 400);
+        // finished animation — nothing more to do here; the page will typically navigate when upload completes
       }
     }
 
     requestAnimationFrame(frame);
+
+    // allow submit to continue normally (no e.preventDefault())
   }
 
   if (form) {
