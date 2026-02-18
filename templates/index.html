@@ -572,21 +572,22 @@ li{ margin-bottom: 6px; color:#e9e9ef; }
 
   <div class="card-head" style="cursor:pointer;" onclick="toggleCard('card-{{ loop.index }}')">
     <div>
-      <h2>{{ loop.index }}. {{ r.name }} — <span class="score">{{ r.priority_score }} / 10</span>
-        <span style="font-size:14px; margin-left:10px;">
-          {% if r.signal_type == 'Growth' %}
-            {% if loop.first %}🔥 Highest Growth{% endif %}
-          {% else %}
-            🔥 {{ r.signal_type }} Signal
-          {% endif %}
-        </span>
-      </h2>
+      <h2>{{ loop.index }}. {{ r.name }} — <span class="score">{{ r.priority_score }} / 10</span></h2>
       <div class="row-meta">
         <span>{{ r.zip }}</span>
         {% if r.industry %}<span>• {{ r.industry }}</span>{% endif %}
       </div>
     </div>
-    <!-- badge removed to avoid duplicate signal label in header -->
+
+    <div>
+      {% if r.signal_type == 'Growth' %}
+        {% if loop.first %}
+          <span class="badge">🔥 Highest Growth</span>
+        {% endif %}
+      {% else %}
+        <span class="badge">🔥 {{ r.signal_type }} Signal</span>
+      {% endif %}
+    </div>
   </div>
  <div id="card-{{ loop.index }}" style="display:none; margin-top:16px;">
 
@@ -669,71 +670,87 @@ Best,
 
 
 <script>
-  // Scanner overlay: animate progress bar and mark steps done while the form uploads (uses XHR to track upload progress)
+  // Scanner overlay: slower bar + slow dot transitions, but still respects upload progress when available
   const form = document.getElementById("scanForm");
   const overlay = document.getElementById("scannerOverlay");
   const scanBarInner = document.querySelector(".scanBar > div");
   const scanSteps = document.querySelectorAll(".scanSteps .step");
 
   function startScanAndSubmit(e) {
-    e.preventDefault(); // submit via XHR so we can animate during upload
+    e.preventDefault(); // use XHR so we can control UI during upload
     overlay.style.display = "flex";
 
     // reset state
     scanSteps.forEach(s => s.classList.remove("done"));
     const activated = new Array(scanSteps.length).fill(false);
+
     if (scanBarInner) {
       scanBarInner.style.width = "6%";
       scanBarInner.style.transition = "none";
     }
 
     const thresholds = [0.12, 0.40, 0.72, 0.92]; // when dots turn green
-    const start = performance.now();
+    const slowDuration = 360000; // 6 minutes for slow animation
+    let lastUploadPct = 0;
+    let animId = null;
+    const startTime = performance.now();
 
     function updateProgress(pct) {
-      const width = 6 + 94 * Math.min(1, pct);
+      const p = Math.min(1, Math.max(0, pct));
+      const width = 6 + 94 * p;
       if (scanBarInner) {
-        scanBarInner.style.transition = "width .25s linear";
+        // slower, smoother transition
+        scanBarInner.style.transition = "width 900ms linear";
         scanBarInner.style.width = width + "%";
       }
       for (let i = 0; i < scanSteps.length; i++) {
-        if (!activated[i] && pct >= (thresholds[i] || 1)) {
+        if (!activated[i] && p >= (thresholds[i] || 1)) {
           activated[i] = true;
           scanSteps[i].classList.add("done");
         }
       }
     }
 
+    // requestAnimationFrame-driven slow animation that never finishes fully (caps at 98%)
+    function tick(now) {
+      const elapsed = now - startTime;
+      const est = Math.min(0.98, elapsed / slowDuration);
+      // prefer actual upload progress if it's ahead of the estimate
+      const visiblePct = Math.max(est, lastUploadPct);
+      updateProgress(visiblePct);
+      if (visiblePct < 0.99) {
+        animId = requestAnimationFrame(tick);
+      } else {
+        animId = null;
+      }
+    }
+    animId = requestAnimationFrame(tick);
+
     const xhr = new XMLHttpRequest();
     xhr.open("POST", form.action);
     xhr.withCredentials = true;
     const fd = new FormData(form);
 
-    // upload progress
     xhr.upload.onprogress = (ev) => {
       if (ev.lengthComputable) {
-        updateProgress(ev.loaded / ev.total);
+        lastUploadPct = ev.loaded / ev.total;
+        updateProgress(lastUploadPct);
       } else {
-        // fallback: slow estimate based on elapsed time (keeps animation moving)
-        const elapsed = performance.now() - start;
-        const est = Math.min(0.98, elapsed / 180000); // 3 minute scale cap at 98%
-        updateProgress(est);
+        // keep using slow estimate (tick will drive UI)
       }
     };
 
-    // final response handling - replace page content with server response so navigation still occurs
     xhr.onreadystatechange = () => {
       if (xhr.readyState === 4) {
-        // ensure full completion UI
+        // cancel animation loop
+        if (animId) cancelAnimationFrame(animId);
         updateProgress(1);
         setTimeout(() => {
-          // replace document with response HTML (works for most server-rendered responses)
           try {
             document.open();
             document.write(xhr.responseText);
             document.close();
           } catch (err) {
-            // fallback to hard redirect if response URL is available
             if (xhr.responseURL) window.location.href = xhr.responseURL;
             else overlay.style.display = "none";
           }
@@ -742,7 +759,7 @@ Best,
     };
 
     xhr.onerror = () => {
-      // show completion state and hide overlay after a short delay
+      if (animId) cancelAnimationFrame(animId);
       updateProgress(1);
       scanSteps.forEach(s => s.classList.add("done"));
       setTimeout(() => {
@@ -751,10 +768,7 @@ Best,
       }, 800);
     };
 
-    // start upload
     xhr.send(fd);
-
-    // keep default submit prevented (we handle navigation when XHR completes)
   }
 
   if (form) {
@@ -770,7 +784,7 @@ Best,
     if (currentlyHidden) el.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
-  // Copy buttons (unchanged logic)
+  // Copy buttons
   document.addEventListener("click", async (e) => {
     const btn = e.target.closest("[data-copy]");
     if (!btn) return;
