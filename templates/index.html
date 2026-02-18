@@ -437,11 +437,17 @@ li{ margin-bottom: 6px; color:#e9e9ef; }
 }
 
 .step .b{
-  width: 10px; height: 10px; border-radius: 999px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
   background: var(--red);
   box-shadow: 0 0 0 6px rgba(255,42,42,.12);
   margin-top: 4px;
+  transition:
+    background-color 1.4s ease,
+    box-shadow 1.4s ease;
 }
+
 
 .step.done .b{
   background: var(--green);
@@ -670,112 +676,96 @@ Best,
 
 
 <script>
-  // Slower scanner UI (very slow fallback)
+  // Scanner UI (progress-driven, dots synced to bar)
   const form = document.getElementById("scanForm");
   const overlay = document.getElementById("scannerOverlay");
   const scanBarInner = document.querySelector(".scanBar > div");
   const scanSteps = Array.from(document.querySelectorAll(".scanSteps .step"));
 
+  // Dots flip when progress reaches these points
+  const stepThresholds = [0.20, 0.40, 0.60, 0.80];
+
+  let progress = 0;
+  let progressInterval = null;
+
+  function setProgress(pct) {
+    progress = Math.min(1, Math.max(progress, pct));
+
+    // Move scan bar slowly
+    const width = 2 + 98 * progress;
+    if (scanBarInner) {
+      scanBarInner.style.transition = "width 1200ms linear";
+      scanBarInner.style.width = width + "%";
+    }
+
+    // 🔑 Dots are tied to progress (NOT time)
+    stepThresholds.forEach((t, i) => {
+      if (progress >= t) {
+        scanSteps[i].classList.add("done");
+      }
+    });
+  }
+
   function startScanAndSubmit(e) {
     e.preventDefault();
     if (!form) return;
 
+    // Reset UI
     overlay.style.display = "flex";
+    progress = 0;
     scanSteps.forEach(s => s.classList.remove("done"));
+
     if (scanBarInner) {
       scanBarInner.style.transition = "none";
       scanBarInner.style.width = "2%";
     }
 
-    const thresholds = [0.12, 0.40, 0.72, 0.92];
-    const slowDuration = 6000000; // 100 minutes (10x slower than previous 10-minute fallback)
-    let lastUploadPct = 0;
-    let progress = 0;
-    let intervalId = null;
-    const stepTimeouts = [];
-
-    function setProgress(pct) {
-      progress = Math.min(1, Math.max(progress, pct));
-      const width = 2 + 98 * progress; // start near 2%
-      if (scanBarInner) {
-        scanBarInner.style.transition = "width 72000ms linear";
-        scanBarInner.style.width = width + "%";
+    // Slow, honest progress creep (never finishes early)
+    progressInterval = setInterval(() => {
+      if (progress < 0.85) {
+        setProgress(progress + Math.random() * 0.025);
       }
-      for (let i = 0; i < scanSteps.length; i++) {
-        if (progress >= (thresholds[i] || 1)) {
-          scanSteps[i].classList.add("done");
-        }
-      }
-    }
-
-    // schedule extremely slow timed completions for each step
-    for (let i = 0; i < thresholds.length; i++) {
-      const t = thresholds[i];
-      const ms = Math.round(slowDuration * t);
-      stepTimeouts.push(setTimeout(() => {
-        scanSteps[i].classList.add("done");
-        setProgress(Math.max(progress, t + 0.005));
-      }, ms));
-    }
-
-    const startTime = Date.now();
-    intervalId = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const est = Math.min(0.99, elapsed / slowDuration);
-      const visible = Math.max(est, lastUploadPct, progress);
-      setProgress(visible);
-      if (visible >= 0.99) {
-        clearInterval(intervalId);
-        intervalId = null;
-      }
-    }, 1000); // update once per second (sufficient for extremely slow animation)
+    }, 1000);
 
     const xhr = new XMLHttpRequest();
     xhr.open("POST", form.action);
     xhr.withCredentials = true;
-    const fd = new FormData(form);
-
-    xhr.upload.onprogress = (ev) => {
-      if (ev.lengthComputable) {
-        lastUploadPct = ev.loaded / ev.total;
-        setProgress(lastUploadPct);
-      }
-    };
+    xhr.send(new FormData(form));
 
     xhr.onreadystatechange = () => {
       if (xhr.readyState === 4) {
-        if (intervalId) { clearInterval(intervalId); intervalId = null; }
-        stepTimeouts.forEach(id => clearTimeout(id));
+        clearInterval(progressInterval);
+
+        // Finish cleanly when backend finishes
         setProgress(1);
-        scanSteps.forEach(s => s.classList.add("done"));
+
+        // Small visual pause so UI lands nicely
         setTimeout(() => {
           try {
             document.open();
             document.write(xhr.responseText);
             document.close();
-          } catch (err) {
-            if (xhr.responseURL) window.location.href = xhr.responseURL;
-            else overlay.style.display = "none";
+          } catch {
+            if (xhr.responseURL) {
+              window.location.href = xhr.responseURL;
+            } else {
+              overlay.style.display = "none";
+            }
           }
-        }, 600);
+        }, 900);
       }
     };
 
     xhr.onerror = () => {
-      if (intervalId) { clearInterval(intervalId); intervalId = null; }
-      stepTimeouts.forEach(id => clearTimeout(id));
-      setProgress(1);
-      scanSteps.forEach(s => s.classList.add("done"));
-      setTimeout(() => {
-        overlay.style.display = "none";
-        alert("Upload failed. Please try again.");
-      }, 700);
+      clearInterval(progressInterval);
+      overlay.style.display = "none";
+      alert("Upload failed. Please try again.");
     };
-
-    xhr.send(fd);
   }
 
-  if (form) form.addEventListener("submit", startScanAndSubmit);
+  if (form) {
+    form.addEventListener("submit", startScanAndSubmit);
+  }
 
   // helpers
   function toggleCard(id) {
