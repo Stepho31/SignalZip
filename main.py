@@ -508,40 +508,61 @@ def start_checkout(request: Request, email: str = Form(...)):
 
 
 @app.get("/checkout/success")
-def checkout_success(session_id: str):
-    # The webhook is the source of truth; here we just log the user in for convenience.
+def checkout_success(request: Request, session_id: str):
+    email = None
+
     try:
-        if STRIPE_SECRET_KEY:
-            session = stripe.checkout.Session.retrieve(session_id)
-            email = (session.get("metadata") or {}).get("email") or session.get("client_reference_id")
+        if STRIPE_SECRET_KEY and session_id:
+            checkout = stripe.checkout.Session.retrieve(session_id)
+
+            # 1. Try metadata (best)
+            email = (checkout.get("metadata") or {}).get("email")
+
+            # 2. Fallbacks
             if not email:
-                # Try customer details
-                email = ((session.get("customer_details") or {}).get("email")) if session.get("customer_details") else None
+                email = checkout.get("client_reference_id")
 
-            resp = RedirectResponse(url="/", status_code=302)
-        if email:
-            email = email.strip().lower()
-            upsert_user(email=email, active=1, subscription_status="active")
+            if not email and checkout.get("customer_details"):
+                email = checkout["customer_details"].get("email")
 
-            resp.set_cookie(
-                SESSION_COOKIE,
-                make_session_token(email),
-                httponly=True,
-                samesite="lax",
-                secure=True,
-                path="/"
-            )
+    except Exception as e:
+        print("Stripe checkout success error:", e)
 
-            # UI convenience cookie (not the security check)
-            resp.set_cookie(PREMIUM_COOKIE_NAME, "1", httponly=True, samesite="lax")
-            return resp
+    # Always redirect home
+    resp = RedirectResponse(url="/", status_code=302)
 
-    except Exception:
-        pass
+    if email:
+        email = email.strip().lower()
 
-    return RedirectResponse(url="/", status_code=302)
+        # 🔑 THIS is the real Pro unlock (you already proved this works)
+        upsert_user(
+            email=email,
+            active=1,
+            subscription_status="active"
+        )
 
+        # Link browser to this email
+        resp.set_cookie(
+            SESSION_COOKIE,
+            make_session_token(email),
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            path="/"
+        )
 
+        # Optional UI hint (not security-critical)
+        resp.set_cookie(
+            PREMIUM_COOKIE_NAME,
+            "1",
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            path="/"
+        )
+
+    return resp
+    
 @app.get("/checkout/cancel")
 def checkout_cancel():
     return RedirectResponse(url="/", status_code=302)
@@ -743,7 +764,7 @@ def dev_make_me_pro():
     email = "stephenbyron31@email.com"
     upsert_user(email=email, active=1, subscription_status="active")
     return {"ok": True}
-    
+
 @app.get("/export.csv")
 def export_csv(request: Request):
     premium = is_premium_request(request)
