@@ -99,7 +99,7 @@ def require_email(request: Request) -> str:
 
 
 def user_is_active_pro(user: Optional[Dict[str, Any]]) -> bool:
-       if not user:
+    if not user:
         return False
     return int(user.get("active") or 0) == 1
 
