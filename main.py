@@ -562,7 +562,7 @@ def checkout_success(request: Request, session_id: str):
         )
 
     return resp
-    
+
 @app.get("/checkout/cancel")
 def checkout_cancel():
     return RedirectResponse(url="/", status_code=302)
@@ -759,11 +759,6 @@ def generate(request: Request, zip_codes: str = Form(...), industry: str = Form(
         },
     )
 
-@app.get("/dev/make-me-pro")
-def dev_make_me_pro():
-    email = "stephenbyron31@email.com"
-    upsert_user(email=email, active=1, subscription_status="active")
-    return {"ok": True}
 
 @app.get("/export.csv")
 def export_csv(request: Request):
