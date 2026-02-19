@@ -116,6 +116,26 @@ def upsert_user(
     conn.commit()
     conn.close()
 
+def migrate_users_table():
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    # Get existing columns
+    cursor.execute("PRAGMA table_info(users)")
+    existing_cols = {row[1] for row in cursor.fetchall()}
+
+    def add_col(name, ddl):
+        if name not in existing_cols:
+            cursor.execute(f"ALTER TABLE users ADD COLUMN {ddl}")
+
+    add_col("stripe_subscription_id", "stripe_subscription_id TEXT")
+    add_col("subscription_status", "subscription_status TEXT")
+    add_col("last_status_check_utc", "last_status_check_utc TEXT")
+
+    conn.commit()
+    conn.close()
+
+
 
 def set_status_check_time(email: str):
     conn = sqlite3.connect(DB_NAME)

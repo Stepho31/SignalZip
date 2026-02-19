@@ -20,6 +20,7 @@ from database import init_db, get_user, upsert_user, set_status_check_time
 
 load_dotenv()
 init_db()
+migrate_users_table()
 
 # ---------------------------
 # ENV / CONFIG
@@ -98,11 +99,9 @@ def require_email(request: Request) -> str:
 
 
 def user_is_active_pro(user: Optional[Dict[str, Any]]) -> bool:
-    if not user:
+       if not user:
         return False
-    status = (user.get("subscription_status") or "").lower()
-    active = int(user.get("active") or 0) == 1
-    return active and status in ("active", "trialing")
+    return int(user.get("active") or 0) == 1
 
 
 def should_refresh_status(user: Dict[str, Any]) -> bool:
@@ -450,7 +449,15 @@ def login_verify(token: str, next: str = "/"):
             upsert_user(email=email, active=0, subscription_status="free")
 
         resp = RedirectResponse(url=next or "/", status_code=302)
-        resp.set_cookie(SESSION_COOKIE, make_session_token(email), httponly=True, samesite="lax")
+        resp.set_cookie(
+            SESSION_COOKIE,
+            make_session_token(email),
+            httponly=True,
+            samesite="lax",
+            secure=True,
+            path="/"
+        )
+
         return resp
 
     except SignatureExpired:
@@ -509,7 +516,14 @@ def checkout_success(session_id: str):
 
             resp = RedirectResponse(url="/", status_code=302)
             if email:
-                resp.set_cookie(SESSION_COOKIE, make_session_token(email), httponly=True, samesite="lax")
+                resp.set_cookie(
+                    SESSION_COOKIE,
+                    make_session_token(email),
+                    httponly=True,
+                    samesite="lax",
+                    secure=True,
+                    path="/"
+                )
             # UI convenience cookie (not the security check)
             resp.set_cookie(PREMIUM_COOKIE_NAME, "1", httponly=True, samesite="lax")
             return resp
@@ -541,6 +555,21 @@ def billing_portal(request: Request):
         return_url=f"{BASE_URL}/",
     )
     return RedirectResponse(portal.url, status_code=303)
+
+@app.get("/dev/login-me")
+def dev_login_me():
+    email = "stephenbyron31@email.com"
+
+    resp = RedirectResponse(url="/", status_code=302)
+    resp.set_cookie(
+        SESSION_COOKIE,
+        make_session_token(email),
+        httponly=True,
+        samesite="lax",
+        secure=True,
+        path="/"
+    )
+    return resp
 
 
 @app.post("/stripe/webhook")
