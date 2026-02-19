@@ -16,7 +16,7 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 import stripe
 
 from openai import OpenAI
-from database import init_db, get_user, upsert_user, set_status_check_time
+from database import init_db, get_user, upsert_user, set_status_check_time, migrate_users_table
 
 load_dotenv()
 init_db()
