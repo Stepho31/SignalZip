@@ -77,7 +77,9 @@ def _utc_now() -> datetime:
 
 
 def make_session_token(email: str) -> str:
+    email = email.strip().lower()
     return serializer.dumps({"email": email})
+
 
 
 def read_session_email(request: Request) -> Optional[str]:
@@ -85,10 +87,12 @@ def read_session_email(request: Request) -> Optional[str]:
     if not token:
         return None
     try:
-        data = serializer.loads(token, max_age=60 * 60 * 24 * 30)  # 30 days
-        return (data or {}).get("email")
+        data = serializer.loads(token, max_age=60 * 60 * 24 * 30)
+        email = (data or {}).get("email")
+        return email.strip().lower() if email else None
     except Exception:
         return None
+
 
 
 def require_email(request: Request) -> str:
@@ -187,11 +191,6 @@ def refresh_subscription_status_from_stripe(email: str) -> Dict[str, Any]:
 
 
 def is_premium_request(request: Request) -> bool:
-    """
-    Secure check:
-    - If logged in: verify subscription status (cached)
-    - If not logged in: free
-    """
     if FORCE_PREMIUM:
         return True
 
@@ -199,8 +198,13 @@ def is_premium_request(request: Request) -> bool:
     if not email:
         return False
 
+    user = get_user(email)
+    if user and int(user.get("active") or 0) == 1:
+        return True
+
+    # OPTIONAL: Stripe refresh only if NOT already active
     refreshed = refresh_subscription_status_from_stripe(email)
-    return bool(refreshed["is_premium"])
+    return bool(refreshed.get("is_premium"))
 
 
 # ---------------------------
@@ -515,15 +519,19 @@ def checkout_success(session_id: str):
                 email = ((session.get("customer_details") or {}).get("email")) if session.get("customer_details") else None
 
             resp = RedirectResponse(url="/", status_code=302)
-            if email:
-                resp.set_cookie(
-                    SESSION_COOKIE,
-                    make_session_token(email),
-                    httponly=True,
-                    samesite="lax",
-                    secure=True,
-                    path="/"
-                )
+        if email:
+            email = email.strip().lower()
+            upsert_user(email=email, active=1, subscription_status="active")
+
+            resp.set_cookie(
+                SESSION_COOKIE,
+                make_session_token(email),
+                httponly=True,
+                samesite="lax",
+                secure=True,
+                path="/"
+            )
+
             # UI convenience cookie (not the security check)
             resp.set_cookie(PREMIUM_COOKIE_NAME, "1", httponly=True, samesite="lax")
             return resp
